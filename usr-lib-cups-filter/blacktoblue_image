@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""
+/usr/lib/cups/filter/blacktoblue_image
+
+Reads PNG from stdin, swaps near-black (#000000) to near-dark-blue (#000060)
+via the same threshold-based logic used by GIMP's color-exchange plug-in.
+Preserves gradients by computing a per-channel delta from the "From" color,
+then adding that delta to the "To" color.
+"""
+
+import sys
+from PIL import Image
+
+def main():
+    # "From" color (#000000) in RGB
+    from_r, from_g, from_b = 0, 0, 0
+
+    # "To" color (#000060) in RGB
+    to_r, to_g, to_b = 0, 0, 96
+
+    # Threshold of 0.4 => ~102 in [0..255]
+    thr = 102  # i.e. int(0.4 * 255)
+
+    # Compute per-channel min/max “match” range
+    min_r = max(from_r - thr, 0)
+    min_g = max(from_g - thr, 0)
+    min_b = max(from_b - thr, 0)
+    max_r = min(from_r + thr, 255)
+    max_g = min(from_g + thr, 255)
+    max_b = min(from_b + thr, 255)
+
+    # Read input PNG as RGBA, so alpha is preserved
+    img = Image.open(sys.stdin.buffer).convert("RGBA")
+    px = img.load()
+
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+
+            # If this pixel is within the threshold range of "from" color:
+            if (min_r <= r <= max_r and
+                min_g <= g <= max_g and
+                min_b <= b <= max_b):
+                # Compute absolute difference from "from" color
+                rdiff = abs(r - from_r)
+                gdiff = abs(g - from_g)
+                bdiff = abs(b - from_b)
+
+                # New color is "to" + that difference (then clamp)
+                nr = max(0, min(to_r + rdiff, 255))
+                ng = max(0, min(to_g + gdiff, 255))
+                nb = max(0, min(to_b + bdiff, 255))
+
+                px[x, y] = (nr, ng, nb, a)
+
+    # Output as PNG on stdout
+    img.save(sys.stdout.buffer, format="PNG")
+
+if __name__ == "__main__":
+    main()

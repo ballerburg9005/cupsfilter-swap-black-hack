@@ -1,0 +1,37 @@
+#!/bin/bash
+# /usr/lib/cups/filter/blacktoblue
+# Converts multi-page PDF from stdin → PNG (300dpi), applies black-to-blue filter, and reassembles as PDF.
+set -e
+
+TMPPDF=$(mktemp --suffix=.pdf)
+TMPDIR=$(mktemp -d)
+TMPDIR_OUT=$(mktemp -d)
+TMPPDF_OUT=$(mktemp --suffix=.pdf)
+
+# Read PDF from stdin into a temporary file
+cat > "$TMPPDF"
+
+# Convert PDF → PNG at 300 dpi, one image per page
+gs -q \
+   -sDEVICE=pngalpha \
+   -r300 \
+   -o "$TMPDIR/page_%04d.png" \
+   -dPDFFitPage \
+   -dFIXEDMEDIA \
+   -dBATCH -dNOPAUSE \
+   "$TMPPDF"
+
+# Apply black-to-blue transformation for each page
+for img in "$TMPDIR"/*.png; do
+    OUTIMG="$TMPDIR_OUT/$(basename "$img")"
+    /usr/lib/cups/filter/blacktoblue_image < "$img" > "$OUTIMG"
+done
+
+# Convert modified PNGs back to PDF
+convert "$TMPDIR_OUT"/*.png -density 300 "$TMPPDF_OUT"
+
+# Output final PDF to stdout
+cat "$TMPPDF_OUT"
+
+rm -rf "$TMPPDF" "$TMPDIR" "$TMPDIR_OUT" "$TMPPDF_OUT"
+exit 0
