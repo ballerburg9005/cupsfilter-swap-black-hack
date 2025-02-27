@@ -1,6 +1,8 @@
 #!/bin/bash
 # /usr/lib/cups/filter/blacktoblue
 # Converts multi-page PDF from stdin → PNG (300dpi), applies black-to-blue filter, and reassembles as PDF.
+# License: GPLv3
+# Author: Ballerburg9005 vs ChatGPT
 set -e
 
 TMPPDF=$(mktemp --suffix=.pdf)
